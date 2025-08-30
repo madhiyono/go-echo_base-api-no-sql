@@ -1,0 +1,39 @@
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Output folders
+/bin/
+/build/
+/tmp/
+
+# Dependency directories
+/vendor/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Config
+config.yaml
+
+# Air temp files
+.air/
+.air.toml
+
+# Go coverage
+coverage.out
+
+# Misc
+*.test

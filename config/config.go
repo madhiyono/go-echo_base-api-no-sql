@@ -1,0 +1,37 @@
+package config
+
+import (
+	"os"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Port string `yaml:"port"`
+	MongoURL string `yaml:"mongo_url"`
+	LogLevel string `yaml:"log_level"`
+	DatabaseName string `yaml:"database_name"`
+}
+
+func LoadConfig(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg Config
+	err = yaml.Unmarshal(data, &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if port := os.Getenv("PORT"); port != "" {
+		cfg.Port = port
+	}
+
+	if mongoURL := os.Getenv("MONGO_URL"); mongoURL != "" {
+		cfg.MongoURL = mongoURL
+	}
+
+	return &cfg, nil
+}

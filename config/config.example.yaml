@@ -1,0 +1,5 @@
+port: "8080"
+mongo_url: "mongodb://localhost:27017/db_name"
+# mongo_url: "mongodb://username:password@host:27017/db_name"
+database_name: "db_name"
+log_level: "info"
