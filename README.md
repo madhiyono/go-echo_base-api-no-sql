@@ -17,7 +17,7 @@ This project is a **Base API** server written in Go, using the [Echo](https://ec
 - **Go**: see `go.mod` (recommended: Go 1.25+)
 - **Echo**: v4.x ([github.com/labstack/echo/v4](https://github.com/labstack/echo))
 - **MongoDB Go Driver**: v1.17.x ([go.mongodb.org/mongo-driver](https://github.com/mongodb/mongo-go-driver))
-- **Air** (for live reload): v1.62.0 ([cosmtrek/air](https://github.com/air-verse/air))
+- **Air** (for live reload): v1.62.0 ([air-verse/air](https://github.com/air-verse/air))
 
 See `go.mod` for the full list of dependencies and their versions.
 
