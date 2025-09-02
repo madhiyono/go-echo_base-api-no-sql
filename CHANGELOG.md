@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### New Features
+
+- Standardized API response template for all endpoints
+- Request validation for incoming data
+- Basic authentication using JWT
+- Authorization with user roles
+
+### Changes
+
+- Various improvements and changes for stability and usability
+
 - Initial project structure with Echo and MongoDB integration
 - Basic user handler, repository, and model
 - Configuration via YAML
@@ -13,7 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Hot reload support with Air
 - Example for adding new routes, repositories, and models
 
-## [1.0.0] - 2025-08-30
+## [1.0.0-beta] - 2025-08-30
 
 - First stable release
 - REST API base with Echo

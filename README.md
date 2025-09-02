@@ -11,6 +11,10 @@ This project is a **Base API** server written in Go, using the [Echo](https://ec
 - Configurable via YAML
 - Built-in logger
 - Hot reload with [Air](https://github.com/air-verse/air)
+- Standardized API response template for all endpoints
+- Request validation for incoming data
+- Basic authentication using JWT
+- Authorization with user roles
 
 ## Package Versions
 
@@ -118,3 +122,15 @@ MIT
 ---
 
 This project is intended as a base for new Go REST API projects. Feel free to fork and adapt for your needs.
+
+## Updates
+
+### New Features
+
+- Added new features (see CHANGELOG.md for details)
+
+### Changes
+
+- Various improvements and changes have been made to enhance stability and usability.
+
+For a complete list of updates, see [CHANGELOG.md](./CHANGELOG.md).
