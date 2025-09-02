@@ -7,10 +7,11 @@ import (
 )
 
 type Config struct {
-	Port string `yaml:"port"`
-	MongoURL string `yaml:"mongo_url"`
-	LogLevel string `yaml:"log_level"`
+	Port         string `yaml:"port"`
+	MongoURL     string `yaml:"mongo_url"`
+	LogLevel     string `yaml:"log_level"`
 	DatabaseName string `yaml:"database_name"`
+	JWTSecret    string `yaml:"jwt_secret"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
@@ -31,6 +32,10 @@ func LoadConfig(filename string) (*Config, error) {
 
 	if mongoURL := os.Getenv("MONGO_URL"); mongoURL != "" {
 		cfg.MongoURL = mongoURL
+	}
+
+	if jwtSecret := os.Getenv("JWT_SECRET"); jwtSecret != "" {
+		cfg.JWTSecret = jwtSecret
 	}
 
 	return &cfg, nil

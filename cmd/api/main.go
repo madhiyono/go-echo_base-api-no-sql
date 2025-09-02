@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/madhiyono/base-api-nosql/config"
+	"github.com/madhiyono/base-api-nosql/internal/auth"
 	"github.com/madhiyono/base-api-nosql/internal/handlers"
 	"github.com/madhiyono/base-api-nosql/internal/middleware"
 	mongorepo "github.com/madhiyono/base-api-nosql/internal/repository/mongo"
@@ -16,7 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-func main(){
+func main() {
 	// Initialize Configuration
 	cfg, err := config.LoadConfig("config/config.yaml")
 	if err != nil {
@@ -49,9 +50,15 @@ func main(){
 
 	// Initialize Repositories
 	userRepo := mongorepo.NewUserRepository(db)
+	authRepo := mongorepo.NewAuthRepository(db)
+
+	// Initialize Auth Service & Middleware
+	authService := auth.NewAuthService(authRepo, userRepo, cfg.JWTSecret)
+	authMiddleware := auth.NewMiddleware(authService)
 
 	// Initialize Handlers
 	userHandler := handlers.NewUserHandler(userRepo, logger)
+	authHandler := handlers.NewAuthHandler(authService, logger)
 
 	// Initialize Echo Instance
 	e := echo.New()
@@ -60,7 +67,7 @@ func main(){
 	middleware.Init(e, logger)
 
 	// Setup Routes
-	routes.Setup(e, userHandler)
+	routes.Setup(e, userHandler, authHandler, authMiddleware)
 
 	// Start Server
 	logger.Info("Starting Server on Port %s", cfg.Port)
