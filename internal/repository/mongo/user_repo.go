@@ -23,7 +23,7 @@ func NewUserRepository(db *mongo.Database) *userRepository {
 func (r *userRepository) Create(user *models.User) error {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
-	
+
 	result, err := r.collection.InsertOne(context.TODO(), user)
 
 	if err != nil {
@@ -97,4 +97,22 @@ func (r *userRepository) List() ([]*models.User, error) {
 	}
 
 	return users, nil
+}
+
+func (r *userRepository) UpdateProfilePhoto(id string, photoURL string) error {
+	objectID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": objectID}
+	update := bson.M{
+		"$set": bson.M{
+			"profile_photo": photoURL,
+			"updated_at":    time.Now(),
+		},
+	}
+
+	_, err = r.collection.UpdateOne(context.TODO(), filter, update)
+	return err
 }

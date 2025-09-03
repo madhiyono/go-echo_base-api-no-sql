@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/madhiyono/base-api-nosql/internal/cache"
@@ -230,4 +231,160 @@ func (h *UserHandler) ListUsers(c echo.Context) error {
 
 	h.logger.Info("Users List Retrieved from Database and Cached")
 	return response.Success(c, "Users Retrieved Successfully", users)
+}
+
+// UploadProfilePhoto uploads a profile photo for the user
+func (h *UserHandler) UploadProfilePhoto(c echo.Context) error {
+	authUserID := c.Get("user_id").(primitive.ObjectID)
+	userID := c.Param("id")
+
+	// Check if user is updating their own profile or has admin permission
+	if userID != authUserID.Hex() {
+		roleID := c.Get("role_id").(primitive.ObjectID)
+		hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "update")
+		if !hasAdminPermission {
+			return response.Error(c, http.StatusForbidden, "Cannot update other users' profile photos", nil)
+		}
+	}
+
+	// Parse multipart form with max memory of 32MB
+	form, err := c.MultipartForm()
+	if err != nil {
+		h.logger.Error("Failed to parse multipart form: %v", err)
+		return response.BadRequest(c, "Failed to parse upload: Invalid form data", nil)
+	}
+
+	// Get files from form
+	files := form.File["photo"]
+	if len(files) == 0 {
+		return response.BadRequest(c, "No photo file provided", nil)
+	}
+
+	fileHeader := files[0]
+
+	// Validate file size (max 5MB)
+	if fileHeader.Size > 5*1024*1024 {
+		return response.BadRequest(c, "File size exceeds 5MB limit", nil)
+	}
+
+	// Validate file type
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/jpg":  true,
+		"image/png":  true,
+		"image/gif":  true,
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		h.logger.Error("Failed to open file: %v", err)
+		return response.InternalServerError(c, "Failed to process file", nil)
+	}
+	defer file.Close()
+
+	// Check file type
+	buffer := make([]byte, 512)
+	_, err = file.Read(buffer)
+	if err != nil {
+		h.logger.Error("Failed to read file header: %v", err)
+		return response.InternalServerError(c, "Failed to process file", nil)
+	}
+	_, err = file.Seek(0, 0) // Reset file pointer
+	if err != nil {
+		h.logger.Error("Failed to reset file pointer: %v", err)
+		return response.InternalServerError(c, "Failed to process file", nil)
+	}
+
+	contentType := http.DetectContentType(buffer)
+	if !allowedTypes[contentType] {
+		return response.BadRequest(c, "Invalid file type. Only JPEG, PNG, and GIF are allowed", nil)
+	}
+
+	// Upload to storage
+	uploadResult, err := h.storageService.UploadProfilePhoto(authUserID, file, fileHeader.Size, fileHeader.Filename)
+	if err != nil {
+		h.logger.Error("Failed to upload profile photo: %v", err)
+		return response.InternalServerError(c, "Failed to upload profile photo", nil)
+	}
+
+	// Update user record with photo URL
+	err = h.userRepo.UpdateProfilePhoto(userID, uploadResult.URL)
+	if err != nil {
+		h.logger.Error("Failed to update user with photo URL: %v", err)
+		// Try to clean up uploaded file
+		h.storageService.DeleteProfilePhoto(uploadResult.Key)
+		return response.InternalServerError(c, "Failed to update user profile", nil)
+	}
+
+	// Get updated user
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		h.logger.Error("Failed to get updated user: %v", err)
+		return response.InternalServerError(c, "Failed to retrieve updated user", nil)
+	}
+
+	return response.Success(c, "Profile photo uploaded successfully", user)
+}
+
+// DeleteProfilePhoto removes the profile photo
+func (h *UserHandler) DeleteProfilePhoto(c echo.Context) error {
+	authUserID := c.Get("user_id").(primitive.ObjectID)
+	userID := c.Param("id")
+
+	// Check if user is updating their own profile or has admin permission
+	if userID != authUserID.Hex() {
+		roleID := c.Get("role_id").(primitive.ObjectID)
+		hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "update")
+		if !hasAdminPermission {
+			return response.Error(c, http.StatusForbidden, "Cannot delete other users' profile photos", nil)
+		}
+	}
+
+	// Get current user to get photo URL
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return response.NotFound(c, "User not found")
+	}
+
+	// If user has a profile photo, delete it from storage
+	if user.ProfilePhoto != "" {
+		// Extract key from URL (this is a simplified approach)
+		// In production, you might want to store the key separately
+		key := h.extractKeyFromURL(user.ProfilePhoto)
+		if key != "" {
+			err := h.storageService.DeleteProfilePhoto(key)
+			if err != nil {
+				h.logger.Error("Failed to delete photo from storage: %v", err)
+				// Don't return error here, continue with database update
+			}
+		}
+	}
+
+	// Update user record to remove photo URL
+	err = h.userRepo.UpdateProfilePhoto(userID, "")
+	if err != nil {
+		h.logger.Error("Failed to remove photo URL from user: %v", err)
+		return response.InternalServerError(c, "Failed to remove profile photo", nil)
+	}
+
+	// Get updated user
+	updatedUser, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		h.logger.Error("Failed to get updated user: %v", err)
+		return response.InternalServerError(c, "Failed to retrieve updated user", nil)
+	}
+
+	return response.Success(c, "Profile photo deleted successfully", updatedUser)
+}
+
+// Helper function to extract key from URL
+func (h *UserHandler) extractKeyFromURL(url string) string {
+	// Simple extraction - in production, you might store the key separately
+	// Expected format: http://minio:9000/bucket-name/key
+	// This is a basic implementation - you might need to adjust based on your URL structure
+	parts := strings.Split(url, "/")
+	if len(parts) >= 5 {
+		return strings.Join(parts[4:], "/")
+	}
+	return ""
 }

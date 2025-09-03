@@ -50,6 +50,10 @@ func Setup(
 		userRoutes.PUT("/:id", userHandler.UpdateUser, authMiddleware.RequirePermission(models.ResourceUsers, models.ActionUpdate))
 		userRoutes.DELETE("/:id", userHandler.DeleteUser, authMiddleware.RequirePermission(models.ResourceUsers, models.ActionDelete))
 		userRoutes.GET("", userHandler.ListUsers, authMiddleware.RequirePermission(models.ResourceUsers, models.ActionRead))
+
+		// Profile photo routes
+		userRoutes.POST("/:id/photo", userHandler.UploadProfilePhoto, authMiddleware.RequirePermission(models.ResourceUsers, models.ActionUpdate))
+		userRoutes.DELETE("/:id/photo", userHandler.DeleteProfilePhoto, authMiddleware.RequirePermission(models.ResourceUsers, models.ActionUpdate))
 	}
 
 	// Admin Only Example

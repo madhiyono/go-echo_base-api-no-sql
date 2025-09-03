@@ -11,6 +11,7 @@ type UserRepository interface {
 	Update(id string, user *models.User) error
 	Delete(id string) error
 	List() ([]*models.User, error)
+	UpdateProfilePhoto(id string, photoURL string) error
 }
 
 type AuthRepository interface {

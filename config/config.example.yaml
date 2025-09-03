@@ -10,3 +10,13 @@ redis:
   addr: "localhost:6379"
   password: ""
   db: 0
+
+# S3 Storage Bucket (MinIO)
+storage:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket_name: "profile-photos"
+  use_ssl: false
+  region: "us-east-1"
+  public_url: "http://localhost:9000"

@@ -13,6 +13,7 @@ import (
 	"github.com/madhiyono/base-api-nosql/internal/middleware"
 	mongorepo "github.com/madhiyono/base-api-nosql/internal/repository/mongo"
 	"github.com/madhiyono/base-api-nosql/internal/routes"
+	"github.com/madhiyono/base-api-nosql/internal/storage"
 	"github.com/madhiyono/base-api-nosql/pkg/logger"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -49,6 +50,12 @@ func main() {
 		}
 	}()
 
+	// Initialize Storage Service
+	storageService, err := storage.NewStorageService(storage.Config(cfg.Storage))
+	if err != nil {
+		logger.Fatal("Failed to Initialize Storage Service: %v", err)
+	}
+
 	// Check Connection
 	if err := client.Ping(ctx, nil); err != nil {
 		logger.Fatal("Failed to Ping MongoDB: %v", err)
@@ -66,7 +73,7 @@ func main() {
 	authMiddleware := auth.NewMiddleware(authService)
 
 	// Initialize Handlers
-	userHandler := handlers.NewUserHandler(userRepo, authService, redisCache, logger)
+	userHandler := handlers.NewUserHandler(userRepo, authService, storageService, redisCache, logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	roleHandler := handlers.NewRoleHandler(roleRepo, authService, logger)
 

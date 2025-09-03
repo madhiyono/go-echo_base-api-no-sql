@@ -12,13 +12,24 @@ type RedisConfig struct {
 	DB       int    `yaml:"db"`
 }
 
+type StorageConfig struct {
+	Endpoint   string `yaml:"endpoint"`
+	AccessKey  string `yaml:"access_key"`
+	SecretKey  string `yaml:"secret_key"`
+	BucketName string `yaml:"bucket_name"`
+	UseSSL     bool   `yaml:"use_ssl"`
+	Region     string `yaml:"region"`
+	PublicURL  string `yaml:"public_url"`
+}
+
 type Config struct {
-	Port         string      `yaml:"port"`
-	MongoURL     string      `yaml:"mongo_url"`
-	LogLevel     string      `yaml:"log_level"`
-	DatabaseName string      `yaml:"database_name"`
-	JWTSecret    string      `yaml:"jwt_secret"`
-	Redis        RedisConfig `yaml:"redis"`
+	Port         string        `yaml:"port"`
+	MongoURL     string        `yaml:"mongo_url"`
+	LogLevel     string        `yaml:"log_level"`
+	DatabaseName string        `yaml:"database_name"`
+	JWTSecret    string        `yaml:"jwt_secret"`
+	Redis        RedisConfig   `yaml:"redis"`
+	Storage      StorageConfig `yaml:"storage"`
 }
 
 func LoadConfig(filename string) (*Config, error) {
