@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"github.com/madhiyono/base-api-nosql/internal/auth"
+	"github.com/madhiyono/base-api-nosql/internal/cache"
 	"github.com/madhiyono/base-api-nosql/internal/repository"
 	"github.com/madhiyono/base-api-nosql/pkg/logger"
 )
@@ -9,18 +10,18 @@ import (
 type Handler struct {
 	userRepo    repository.UserRepository
 	roleRepo    repository.RoleRepository
-	authRepo    repository.AuthRepository
 	authService *auth.AuthService
 	logger      *logger.Logger
 }
 
-func NewUserHandler(userRepo repository.UserRepository, authService *auth.AuthService, logger *logger.Logger) *UserHandler {
+func NewUserHandler(userRepo repository.UserRepository, authService *auth.AuthService, cache cache.Cache, logger *logger.Logger) *UserHandler {
 	return &UserHandler{
 		Handler: Handler{
 			userRepo:    userRepo,
 			authService: authService,
 			logger:      logger,
 		},
+		cache: cache,
 	}
 }
 
@@ -45,6 +46,7 @@ func NewRoleHandler(roleRepo repository.RoleRepository, authService *auth.AuthSe
 
 type UserHandler struct {
 	Handler
+	cache cache.Cache
 }
 
 type AuthHandler struct {

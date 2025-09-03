@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/madhiyono/base-api-nosql/config"
 	"github.com/madhiyono/base-api-nosql/internal/auth"
+	"github.com/madhiyono/base-api-nosql/internal/cache"
 	"github.com/madhiyono/base-api-nosql/internal/handlers"
 	"github.com/madhiyono/base-api-nosql/internal/middleware"
 	mongorepo "github.com/madhiyono/base-api-nosql/internal/repository/mongo"
@@ -26,6 +27,13 @@ func main() {
 
 	// Initialize Logger
 	logger := logger.New(cfg.LogLevel)
+
+	// Initialize Redis Cache
+	redisCache, err := cache.NewRedisCache(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		logger.Fatal("Failed to Connect To Redis: %v", err)
+	}
+	logger.Info("Connected to Redis at %s", cfg.Redis.Addr)
 
 	// Initialize MongoDB Connection
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -58,7 +66,7 @@ func main() {
 	authMiddleware := auth.NewMiddleware(authService)
 
 	// Initialize Handlers
-	userHandler := handlers.NewUserHandler(userRepo, authService, logger)
+	userHandler := handlers.NewUserHandler(userRepo, authService, redisCache, logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
 	roleHandler := handlers.NewRoleHandler(roleRepo, authService, logger)
 

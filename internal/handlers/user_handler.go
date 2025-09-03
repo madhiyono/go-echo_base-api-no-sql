@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/madhiyono/base-api-nosql/internal/cache"
 	"github.com/madhiyono/base-api-nosql/internal/models"
 	"github.com/madhiyono/base-api-nosql/pkg/response"
 	"github.com/madhiyono/base-api-nosql/pkg/validation"
@@ -34,6 +36,11 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 		return response.InternalServerError(c, "Failed to Create User: Internal Server Error", nil)
 	}
 
+	// Invalidate user list cache using tags
+	if err := h.cache.InvalidateTag(cache.UsersListTag); err != nil {
+		h.logger.Error("Failed to Invalidate Users List Cache: %v", err)
+	}
+
 	return response.Created(c, "User Created Successfully", user)
 }
 
@@ -41,21 +48,39 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 func (h *UserHandler) GetUser(c echo.Context) error {
 	id := c.Param("id")
 
-	// Check if user is trying to access their own profile or has permission
-	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
+	// Try to get user from cache first
+	cacheKey := fmt.Sprintf("%s%s", cache.UserCachePrefix, id)
 
-	// If user is accessing their own profile, allow it
-	if id != authUserID.Hex() {
-		// For accessing other users' profiles, check permission
-		// This is a simplified check - you might want more sophisticated logic
+	var cachedUser models.User
+	if err := h.cache.Get(cacheKey, &cachedUser); err == nil {
+		h.logger.Info("User Retrieved from Cache: %s", id)
+		return response.Success(c, "User Retrieved Successfully", cachedUser)
 	}
 
+	// If not in cache, get from database
 	user, err := h.userRepo.GetByID(id)
 	if err != nil {
 		h.logger.Error("Failed to Get User: %v", err)
-		return response.NotFound(c, "User Not Found!")
+		return response.NotFound(c, "User Not Found")
 	}
 
+	// Check if user is trying to access their own profile or has permission
+	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
+	roleID := c.Get("role_id").(primitive.ObjectID)
+
+	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "read")
+	if user.ID != authUserID && !hasAdminPermission {
+		return response.Error(c, http.StatusForbidden, "Access Denied to This User Record", nil)
+	}
+
+	// Cache the user data with tags for easy invalidation
+	tags := []string{cache.UsersTag}
+	if err := h.cache.SetWithTags(cacheKey, *user, tags, cache.DefaultExpiration); err != nil {
+		h.logger.Error("Failed to Cache User Data: %v", err)
+		// Don't return error, just continue without caching
+	}
+
+	h.logger.Info("User Retrieved from Database and Cached: %s", id)
 	return response.Success(c, "User Retrieved Successfully", user)
 }
 
@@ -68,10 +93,16 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
 	roleID, _ := c.Get("role_id").(primitive.ObjectID)
 
+	// Get existing user to check permissions
+	existingUser, err := h.userRepo.GetByID(id)
+	if err != nil {
+		return response.NotFound(c, "User Not Found!")
+	}
+
 	// Non-admin users can only update their own profile
 	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "update")
-	if !hasAdminPermission && id != authUserID.Hex() {
-		return response.Error(c, http.StatusForbidden, "Cannot Update Other Users", nil)
+	if existingUser.ID != authUserID && !hasAdminPermission {
+		return response.Error(c, http.StatusForbidden, "Cannot Update This User Record", nil)
 	}
 
 	user := new(models.User)
@@ -95,6 +126,28 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		return response.InternalServerError(c, "Failed to Update User: Internal Server Error", nil)
 	}
 
+	// Invalidate cache for this specific user
+	cacheKey := fmt.Sprintf("%s%s", cache.UserCachePrefix, id)
+	if err := h.cache.Delete(cacheKey); err != nil {
+		h.logger.Error("Failed to invalidate user cache: %v", err)
+	}
+
+	// Invalidate cache for this specific user using tags
+	userCacheKey := fmt.Sprintf("%s%s", cache.UserCachePrefix, id)
+	if err := h.cache.InvalidateTag(cache.UsersTag); err != nil {
+		h.logger.Error("Failed to Invalidate User Cache by Tag: %v", err)
+	}
+
+	// Also explicitly delete the specific user key
+	if err := h.cache.Delete(userCacheKey); err != nil {
+		h.logger.Error("Failed to Delete Specific User Cache: %v", err)
+	}
+
+	// Invalidate user list cache
+	if err := h.cache.InvalidateTag(cache.UsersListTag); err != nil {
+		h.logger.Error("Failed to Invalidate Users List Cache: %v", err)
+	}
+
 	return response.Success(c, "User Updated Successfully", user)
 }
 
@@ -106,10 +159,15 @@ func (h *UserHandler) DeleteUser(c echo.Context) error {
 	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
 	roleID, _ := c.Get("role_id").(primitive.ObjectID)
 
+	existingUser, err := h.userRepo.GetByID(id)
+	if err != nil {
+		return response.NotFound(c, "User Not Found!")
+	}
+
 	// Non-admin users can only delete their own profile
 	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "delete")
-	if !hasAdminPermission && id != authUserID.Hex() {
-		return response.Error(c, http.StatusForbidden, "Cannot Delete Other Users", nil)
+	if existingUser.ID != authUserID && !hasAdminPermission {
+		return response.Error(c, http.StatusForbidden, "Cannot Delete This User Record", nil)
 	}
 
 	if err := h.userRepo.Delete(id); err != nil {
@@ -117,16 +175,59 @@ func (h *UserHandler) DeleteUser(c echo.Context) error {
 		return response.InternalServerError(c, "Failed to Delete User: Internal Server Error", nil)
 	}
 
+	// Invalidate cache using tags
+	if err := h.cache.InvalidateTag(cache.UsersTag); err != nil {
+		h.logger.Error("Failed to Invalidate User Cache by Tag: %v", err)
+	}
+
+	// Invalidate user list cache
+	if err := h.cache.InvalidateTag(cache.UsersListTag); err != nil {
+		h.logger.Error("Failed to Invalidate Users List Cache: %v", err)
+	}
+
 	return response.Success(c, "User Deleted Successfully", nil)
 }
 
 // ListUsers: Returns all users
 func (h *UserHandler) ListUsers(c echo.Context) error {
-	users, err := h.userRepo.List()
+	authUserID := c.Get("user_id").(primitive.ObjectID)
+	roleID := c.Get("role_id").(primitive.ObjectID)
+
+	// Try to get users list from cache first
+	cacheKey := fmt.Sprintf("users_list:%s:%s", authUserID.Hex(), roleID.Hex())
+
+	var cachedUsers []*models.User
+	if err := h.cache.Get(cacheKey, &cachedUsers); err == nil {
+		h.logger.Info("Users list retrieved from cache")
+		return response.Success(c, "Users retrieved successfully", cachedUsers)
+	}
+
+	// Check if user has admin permission to see all users
+	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "read")
+
+	var users []*models.User
+	var err error
+
+	if hasAdminPermission {
+		// Admin can see all users
+		users, err = h.userRepo.List()
+	} else {
+		// Regular users can only see their own records or records they own
+		return response.Error(c, http.StatusForbidden, "Access Denied to This User Record", nil)
+	}
+
 	if err != nil {
-		h.logger.Error("Failed to list users: %v", err)
+		h.logger.Error("Failed to List Users: %v", err)
 		return response.InternalServerError(c, "Failed to Retrieve Users: Internal Server Error", nil)
 	}
 
+	// Cache the users list with tags for easy invalidation
+	tags := []string{cache.UsersListTag, cache.UsersTag}
+	if err := h.cache.SetWithTags(cacheKey, users, tags, cache.DefaultExpiration); err != nil {
+		h.logger.Error("Failed to Cache Users List: %v", err)
+		// Don't return error, just continue without caching
+	}
+
+	h.logger.Info("Users List Retrieved from Database and Cached")
 	return response.Success(c, "Users Retrieved Successfully", users)
 }
