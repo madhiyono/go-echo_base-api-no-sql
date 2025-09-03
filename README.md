@@ -28,16 +28,44 @@ See `go.mod` for the full list of dependencies and their versions.
 ## Project Structure
 
 ```
-cmd/api/main.go         # Entry point
-config/                 # Configuration files
+go.mod                  # Go module definition
+go.sum                  # Go module checksums
+cmd/
+  api/
+    main.go             # Application entry point
+config/
+  config.go             # Configuration loader (reads config file and env)
+  config.example.yaml   # Template configuration file (copy to config.yaml for setup)
 internal/
-  handlers/             # HTTP handlers
-  middleware/           # Custom middleware
-  models/               # Data models
-  repository/           # Data access layer
-    mongo/              # MongoDB-specific repositories
-  routes/               # Route definitions
-pkg/logger/             # Logger utility
+  auth/
+    auth.go             # Authentication logic (login, token generation, password hashing)
+    middleware.go       # Auth-related middleware (JWT validation, role checks)
+  handlers/
+    handlers.go         # General handlers (base handler functions)
+    user_handler.go     # User-related handlers (user endpoints: CRUD, profile)
+    auth_handler.go     # Auth endpoints (login, register, refresh token)
+    role_handler.go     # Role endpoints (role management)
+  middleware/
+    middleware.go       # Custom middleware (request logging, error handling, CORS, etc.)
+  models/
+    auth.go             # Auth-related data models (JWT claims, login/register structs)
+    role.go             # Role data model (role struct, permissions)
+    user.go             # User data model (user struct, validation)
+  repository/
+    repository.go       # Repository interfaces (data access abstraction)
+    mongo/
+      auth_repo.go      # MongoDB auth repository implementation (login, register)
+      role_repo.go      # MongoDB role repository implementation (role CRUD)
+      user_repo.go      # MongoDB user repository implementation (user CRUD)
+  routes/
+    routes.go           # Route definitions and registration (Echo router)
+pkg/
+  logger/
+    logger.go           # Logger utility (structured logging)
+  response/
+    response.go         # Standardized API response template (success/error responses)
+  validation/
+    validation.go       # Request validation logic (struct validation, custom rules)
 ```
 
 ## Getting Started
@@ -45,12 +73,13 @@ pkg/logger/             # Logger utility
 ### 1. Clone the repository
 
 ```sh
-git clone <your-repo-url>
-cd base-api-nosql
+git clone https://github.com/madhiyono/go-echo_base-api-no-sql.git
+cd go-echo_base-api-no-sql
 ```
 
 ### 2. Configure the application
 
+Rename `config/config.example.yaml` to `config/config.yaml`
 Edit `config/config.yaml` to set your MongoDB URI and other settings.
 
 ### 3. Install dependencies
@@ -114,10 +143,6 @@ go run cmd/api/main.go
 
 1. Create a new middleware in `internal/middleware/`.
 2. Register it in `cmd/api/main.go` or in the router as needed.
-
-## License
-
-MIT
 
 ---
 

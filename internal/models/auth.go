@@ -7,19 +7,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-type UserRole string
-
-const (
-	RoleAdmin UserRole = "admin"
-	RoleUser  UserRole = "user"
-)
-
 type UserAuth struct {
 	ID        primitive.ObjectID `json:"id,omitempty" bson:"_id,omitempty"`
 	UserID    primitive.ObjectID `json:"user_id" bson:"user_id"`
 	Email     string             `json:"email" bson:"email" validate:"required,email"`
 	Password  string             `json:"-" bson:"password" validate:"required,min=8"`
-	Role      UserRole           `json:"role" bson:"role"`
+	RoleID    primitive.ObjectID `json:"role_id" bson:"role_id"` // Reference to Role
 	IsActive  bool               `json:"is_active" bson:"is_active"`
 	CreatedAt time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt time.Time          `json:"updated_at" bson:"updated_at"`
@@ -37,14 +30,14 @@ type RegisterRequest struct {
 }
 
 type AuthResponse struct {
-	Token string   `json:"token"`
-	User  *User    `json:"user"`
-	Role  UserRole `json:"role"`
+	Token string `json:"token"`
+	User  *User  `json:"user"`
+	Role  *Role  `json:"role"`
 }
 
 type Claims struct {
 	UserID primitive.ObjectID `json:"user_id"`
 	Email  string             `json:"email"`
-	Role   UserRole           `json:"role"`
+	RoleID primitive.ObjectID `json:"role_id"`
 	jwt.RegisteredClaims
 }

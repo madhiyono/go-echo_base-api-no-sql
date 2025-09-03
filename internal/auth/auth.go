@@ -7,19 +7,27 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/madhiyono/base-api-nosql/internal/models"
 	"github.com/madhiyono/base-api-nosql/internal/repository"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
 	authRepo repository.AuthRepository
 	userRepo repository.UserRepository
+	roleRepo repository.RoleRepository
 	jwtKey   []byte
 }
 
-func NewAuthService(authRepo repository.AuthRepository, userRepo repository.UserRepository, jwtKey string) *AuthService {
+func NewAuthService(
+	authRepo repository.AuthRepository,
+	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
+	jwtKey string,
+) *AuthService {
 	return &AuthService{
 		authRepo: authRepo,
 		userRepo: userRepo,
+		roleRepo: roleRepo,
 		jwtKey:   []byte(jwtKey),
 	}
 }
@@ -34,13 +42,13 @@ func (s *AuthService) CheckPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
-func (s *AuthService) GenerateToken(user *models.User, role models.UserRole) (string, error) {
+func (s *AuthService) GenerateToken(user *models.User, roleID primitive.ObjectID) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 
 	claims := &models.Claims{
 		UserID: user.ID,
 		Email:  user.Email,
-		Role:   role,
+		RoleID: roleID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
@@ -55,7 +63,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.Claims, error) 
 
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("Unexpected Signing Method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return s.jwtKey, nil
 	})
@@ -65,7 +73,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.Claims, error) 
 	}
 
 	if !token.Valid {
-		return nil, fmt.Errorf("Invalid Token!")
+		return nil, fmt.Errorf("invalid token")
 	}
 
 	return claims, nil
@@ -74,7 +82,7 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.Claims, error) 
 func (s *AuthService) Register(request *models.RegisterRequest) (*models.AuthResponse, error) {
 	// Check if user already exists
 	if _, err := s.authRepo.GetByEmail(request.Email); err == nil {
-		return nil, fmt.Errorf("User Already Exists!")
+		return nil, fmt.Errorf("user already exists")
 	}
 
 	// Create user
@@ -85,6 +93,12 @@ func (s *AuthService) Register(request *models.RegisterRequest) (*models.AuthRes
 
 	if err := s.userRepo.Create(user); err != nil {
 		return nil, err
+	}
+
+	// Get default role (user role)
+	defaultRole, err := s.roleRepo.GetByName("user")
+	if err != nil {
+		return nil, fmt.Errorf("default role not found")
 	}
 
 	// Hash password
@@ -98,7 +112,7 @@ func (s *AuthService) Register(request *models.RegisterRequest) (*models.AuthRes
 		UserID:   user.ID,
 		Email:    request.Email,
 		Password: hashedPassword,
-		Role:     models.RoleUser, // Default role
+		RoleID:   defaultRole.ID,
 		IsActive: true,
 	}
 
@@ -107,7 +121,7 @@ func (s *AuthService) Register(request *models.RegisterRequest) (*models.AuthRes
 	}
 
 	// Generate token
-	token, err := s.GenerateToken(user, auth.Role)
+	token, err := s.GenerateToken(user, auth.RoleID)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +129,7 @@ func (s *AuthService) Register(request *models.RegisterRequest) (*models.AuthRes
 	return &models.AuthResponse{
 		Token: token,
 		User:  user,
-		Role:  auth.Role,
+		Role:  defaultRole,
 	}, nil
 }
 
@@ -123,17 +137,17 @@ func (s *AuthService) Login(request *models.LoginRequest) (*models.AuthResponse,
 	// Get auth record
 	auth, err := s.authRepo.GetByEmail(request.Email)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid Credentials!")
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	// Check if account is active
 	if !auth.IsActive {
-		return nil, fmt.Errorf("Account is Deactivated!")
+		return nil, fmt.Errorf("account is deactivated")
 	}
 
 	// Check password
 	if !s.CheckPasswordHash(request.Password, auth.Password) {
-		return nil, fmt.Errorf("Invalid Credentials!")
+		return nil, fmt.Errorf("invalid credentials")
 	}
 
 	// Get user details
@@ -142,8 +156,14 @@ func (s *AuthService) Login(request *models.LoginRequest) (*models.AuthResponse,
 		return nil, err
 	}
 
+	// Get role details
+	role, err := s.roleRepo.GetByID(auth.RoleID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate token
-	token, err := s.GenerateToken(user, auth.Role)
+	token, err := s.GenerateToken(user, auth.RoleID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +171,11 @@ func (s *AuthService) Login(request *models.LoginRequest) (*models.AuthResponse,
 	return &models.AuthResponse{
 		Token: token,
 		User:  user,
-		Role:  auth.Role,
+		Role:  role,
 	}, nil
+}
+
+// Check if user has permission
+func (s *AuthService) HasPermission(roleID primitive.ObjectID, resource, action string) (bool, error) {
+	return s.roleRepo.HasPermission(roleID, resource, action)
 }

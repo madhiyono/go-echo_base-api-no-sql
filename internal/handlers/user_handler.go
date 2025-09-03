@@ -13,12 +13,6 @@ import (
 // In CreateUser method, you might want to check if the authenticated user has permission
 // to create other users (admin-only functionality)
 func (h *UserHandler) CreateUser(c echo.Context) error {
-	// Check if user has admin role to create other users
-	role := c.Get("role").(models.UserRole)
-	if role != models.RoleAdmin {
-		return response.Error(c, http.StatusForbidden, "Insufficient Permissions to Create Users", nil)
-	}
-
 	user := new(models.User)
 	if err := c.Bind(user); err != nil {
 		h.logger.Error("Failed to Bind User: %v", err)
@@ -47,6 +41,15 @@ func (h *UserHandler) CreateUser(c echo.Context) error {
 func (h *UserHandler) GetUser(c echo.Context) error {
 	id := c.Param("id")
 
+	// Check if user is trying to access their own profile or has permission
+	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
+
+	// If user is accessing their own profile, allow it
+	if id != authUserID.Hex() {
+		// For accessing other users' profiles, check permission
+		// This is a simplified check - you might want more sophisticated logic
+	}
+
 	user, err := h.userRepo.GetByID(id)
 	if err != nil {
 		h.logger.Error("Failed to Get User: %v", err)
@@ -59,8 +62,17 @@ func (h *UserHandler) GetUser(c echo.Context) error {
 // In other methods, you might want to add authorization checks
 // For example, users can only update their own profile
 func (h *UserHandler) UpdateUser(c echo.Context) error {
-	userID := c.Param("id")
-	authUserID := c.Get("user_id").(primitive.ObjectID)
+	id := c.Param("id")
+
+	// Check authorization - users can only update their own profile unless they have admin permissions
+	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
+	roleID, _ := c.Get("role_id").(primitive.ObjectID)
+
+	// Non-admin users can only update their own profile
+	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "update")
+	if !hasAdminPermission && id != authUserID.Hex() {
+		return response.Error(c, http.StatusForbidden, "Cannot Update Other Users", nil)
+	}
 
 	user := new(models.User)
 	if err := c.Bind(user); err != nil {
@@ -78,15 +90,7 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 		return response.BadRequest(c, "Failed to Update User: Validation Error", nil)
 	}
 
-	// Non-admin users can only update their own profile
-	role := c.Get("role").(models.UserRole)
-	if role != models.RoleAdmin {
-		if userID != authUserID.Hex() {
-			return response.Error(c, http.StatusForbidden, "Cannot Update Other Users", nil)
-		}
-	}
-
-	if err := h.userRepo.Update(userID, user); err != nil {
+	if err := h.userRepo.Update(id, user); err != nil {
 		h.logger.Error("Failed to Update User: %v", err)
 		return response.InternalServerError(c, "Failed to Update User: Internal Server Error", nil)
 	}
@@ -97,6 +101,16 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 // DeleteUser: Deletes a user by ID
 func (h *UserHandler) DeleteUser(c echo.Context) error {
 	id := c.Param("id")
+
+	// Check authorization - users can only delete their own profile unless they have admin permissions
+	authUserID, _ := c.Get("user_id").(primitive.ObjectID)
+	roleID, _ := c.Get("role_id").(primitive.ObjectID)
+
+	// Non-admin users can only delete their own profile
+	hasAdminPermission, _ := h.authService.HasPermission(roleID, "users", "delete")
+	if !hasAdminPermission && id != authUserID.Hex() {
+		return response.Error(c, http.StatusForbidden, "Cannot Delete Other Users", nil)
+	}
 
 	if err := h.userRepo.Delete(id); err != nil {
 		h.logger.Error("Failed to Delete User: %v", err)

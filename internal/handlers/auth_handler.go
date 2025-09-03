@@ -4,24 +4,10 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/madhiyono/base-api-nosql/internal/auth"
 	"github.com/madhiyono/base-api-nosql/internal/models"
-	"github.com/madhiyono/base-api-nosql/pkg/logger"
 	"github.com/madhiyono/base-api-nosql/pkg/response"
 	"github.com/madhiyono/base-api-nosql/pkg/validation"
 )
-
-type AuthHandler struct {
-	authService *auth.AuthService
-	logger      *logger.Logger
-}
-
-func NewAuthHandler(authService *auth.AuthService, logger *logger.Logger) *AuthHandler {
-	return &AuthHandler{
-		authService: authService,
-		logger:      logger,
-	}
-}
 
 // Register creates a new user account
 func (h *AuthHandler) Register(c echo.Context) error {

@@ -51,14 +51,16 @@ func main() {
 	// Initialize Repositories
 	userRepo := mongorepo.NewUserRepository(db)
 	authRepo := mongorepo.NewAuthRepository(db)
+	roleRepo := mongorepo.NewRoleRepository(db)
 
 	// Initialize Auth Service & Middleware
-	authService := auth.NewAuthService(authRepo, userRepo, cfg.JWTSecret)
+	authService := auth.NewAuthService(authRepo, userRepo, roleRepo, cfg.JWTSecret)
 	authMiddleware := auth.NewMiddleware(authService)
 
 	// Initialize Handlers
-	userHandler := handlers.NewUserHandler(userRepo, logger)
+	userHandler := handlers.NewUserHandler(userRepo, authService, logger)
 	authHandler := handlers.NewAuthHandler(authService, logger)
+	roleHandler := handlers.NewRoleHandler(roleRepo, authService, logger)
 
 	// Initialize Echo Instance
 	e := echo.New()
@@ -67,7 +69,7 @@ func main() {
 	middleware.Init(e, logger)
 
 	// Setup Routes
-	routes.Setup(e, userHandler, authHandler, authMiddleware)
+	routes.Setup(e, userHandler, authHandler, roleHandler, authMiddleware)
 
 	// Start Server
 	logger.Info("Starting Server on Port %s", cfg.Port)

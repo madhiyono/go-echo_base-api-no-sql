@@ -65,3 +65,16 @@ func (r *authRepository) UpdatePassword(userID primitive.ObjectID, password stri
 	_, err := r.collection.UpdateOne(context.TODO(), filter, update)
 	return err
 }
+
+func (r *authRepository) UpdateRole(userID, roleID primitive.ObjectID) error {
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"role_id":    roleID,
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := r.collection.UpdateOne(context.TODO(), filter, update)
+	return err
+}

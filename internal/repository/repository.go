@@ -19,3 +19,13 @@ type AuthRepository interface {
 	GetByUserID(userID primitive.ObjectID) (*models.UserAuth, error)
 	UpdatePassword(userID primitive.ObjectID, password string) error
 }
+
+type RoleRepository interface {
+	Create(role *models.Role) error
+	GetByID(id primitive.ObjectID) (*models.Role, error)
+	GetByName(name string) (*models.Role, error)
+	Update(id primitive.ObjectID, role *models.Role) error
+	Delete(id primitive.ObjectID) error
+	List() ([]*models.Role, error)
+	HasPermission(roleID primitive.ObjectID, resource, action string) (bool, error)
+}

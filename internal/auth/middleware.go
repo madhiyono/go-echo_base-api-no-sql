@@ -2,12 +2,11 @@ package auth
 
 import (
 	"net/http"
-	"slices"
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	"github.com/madhiyono/base-api-nosql/internal/models"
 	"github.com/madhiyono/base-api-nosql/pkg/response"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Middleware struct {
@@ -45,34 +44,56 @@ func (m *Middleware) JWTAuth(next echo.HandlerFunc) echo.HandlerFunc {
 		// Store user info in context
 		c.Set("user_id", claims.UserID)
 		c.Set("email", claims.Email)
-		c.Set("role", claims.Role)
+		c.Set("role_id", claims.RoleID)
 
 		return next(c)
 	}
 }
 
-// RequireRole middleware for role-based authorization
-func (m *Middleware) RequireRole(roles ...models.UserRole) echo.MiddlewareFunc {
+// RequirePermission middleware for permission-based authorization
+func (m *Middleware) RequirePermission(resource, action string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			userRole := c.Get("role").(models.UserRole)
-
-			// Check if user has required role
-			if slices.Contains(roles, userRole) {
-				return next(c)
+			roleID, ok := c.Get("role_id").(primitive.ObjectID)
+			if !ok {
+				return response.Error(c, http.StatusForbidden, "Invalid Role", nil)
 			}
 
-			return response.Error(c, http.StatusForbidden, "Insufficient Permissions", nil)
+			// Check if user has required permission
+			hasPermission, err := m.authService.HasPermission(roleID, resource, action)
+			if err != nil {
+				return response.InternalServerError(c, "Failed to Check Permissions", err)
+			}
+
+			if !hasPermission {
+				return response.Error(c, http.StatusForbidden, "Insufficient Permissions", nil)
+			}
+
+			return next(c)
 		}
 	}
 }
 
 // RequireAdmin middleware for admin-only access
-func (m *Middleware) RequireAdmin(next echo.HandlerFunc) echo.HandlerFunc {
-	return m.RequireRole(models.RoleAdmin)(next)
-}
+func (m *Middleware) RequireAdmin() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			roleID, ok := c.Get("role_id").(primitive.ObjectID)
+			if !ok {
+				return response.Error(c, http.StatusForbidden, "Invalid Role", nil)
+			}
 
-// RequireUser middleware for user access
-func (m *Middleware) RequireUser(next echo.HandlerFunc) echo.HandlerFunc {
-	return m.RequireRole(models.RoleAdmin, models.RoleUser)(next)
+			// Check if user has admin permissions (can manage roles)
+			hasPermission, err := m.authService.HasPermission(roleID, "roles", "create")
+			if err != nil {
+				return response.InternalServerError(c, "Failed to Check Admin Permissions", err)
+			}
+
+			if !hasPermission {
+				return response.Error(c, http.StatusForbidden, "Admin Access Required", nil)
+			}
+
+			return next(c)
+		}
+	}
 }
