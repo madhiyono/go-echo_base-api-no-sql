@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Email Verification</title>
+  </head>
+  <body>
+    <div
+      style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto"
+    >
+      <h2>Email Verification</h2>
+      <p>Hello {{.Name}},</p>
+      <p>
+        Thank you for registering with our service. Please verify your email
+        address by clicking the button below:
+      </p>
+      <div style="text-align: center; margin: 30px 0">
+        <a
+          href="{{.VerificationURL}}"
+          style="
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+          "
+        >
+          Verify Email Address
+        </a>
+      </div>
+      <p>
+        If the button doesn't work, you can also copy and paste the following
+        link into your browser:
+      </p>
+      <p>{{.VerificationURL}}</p>
+      <p>This verification link will expire in 24 hours.</p>
+      <p>If you didn't create an account, please ignore this email.</p>
+      <hr />
+      <p style="font-size: 12px; color: #666">
+        This email was sent to {{.Email}}. If you have any questions, please
+        contact our support team.
+      </p>
+    </div>
+  </body>
+</html>

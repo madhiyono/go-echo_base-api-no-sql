@@ -78,3 +78,16 @@ func (r *authRepository) UpdateRole(userID, roleID primitive.ObjectID) error {
 	_, err := r.collection.UpdateOne(context.TODO(), filter, update)
 	return err
 }
+
+func (r *authRepository) ActivateUser(userID primitive.ObjectID) error {
+	filter := bson.M{"user_id": userID}
+	update := bson.M{
+		"$set": bson.M{
+			"is_active":  true,
+			"updated_at": time.Now(),
+		},
+	}
+
+	_, err := r.collection.UpdateOne(context.TODO(), filter, update)
+	return err
+}

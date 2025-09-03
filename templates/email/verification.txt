@@ -1,0 +1,13 @@
+Email Verification
+
+Hello {{.Name}},
+
+Thank you for registering with our service. Please verify your email address by clicking the link below:
+
+{{.VerificationURL}}
+
+This verification link will expire in 24 hours.
+
+If you didn't create an account, please ignore this email.
+
+This email was sent to {{.Email}}. If you have any questions, please contact our support team.

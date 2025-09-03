@@ -9,10 +9,12 @@ import (
 	"github.com/madhiyono/base-api-nosql/config"
 	"github.com/madhiyono/base-api-nosql/internal/auth"
 	"github.com/madhiyono/base-api-nosql/internal/cache"
+	"github.com/madhiyono/base-api-nosql/internal/email"
 	"github.com/madhiyono/base-api-nosql/internal/handlers"
 	"github.com/madhiyono/base-api-nosql/internal/middleware"
 	mongorepo "github.com/madhiyono/base-api-nosql/internal/repository/mongo"
 	"github.com/madhiyono/base-api-nosql/internal/routes"
+	"github.com/madhiyono/base-api-nosql/internal/services"
 	"github.com/madhiyono/base-api-nosql/internal/storage"
 	"github.com/madhiyono/base-api-nosql/pkg/logger"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -67,6 +69,22 @@ func main() {
 	userRepo := mongorepo.NewUserRepository(db)
 	authRepo := mongorepo.NewAuthRepository(db)
 	roleRepo := mongorepo.NewRoleRepository(db)
+	verifyRepo := mongorepo.NewVerificationRepository(db)
+
+	// Initialize WebSocket service
+	wsService := services.NewWebSocketService(logger)
+
+	// Initialize email service
+	emailService := email.NewEmailService(verifyRepo, redisCache, logger, email.EmailConfig{
+		SMTPHost:     cfg.Email.SMTPHost,
+		SMTPPort:     cfg.Email.SMTPPort,
+		SMTPUser:     cfg.Email.SMTPUser,
+		SMTPPassword: cfg.Email.SMTPPassword,
+		FromEmail:    cfg.Email.FromEmail,
+		FromName:     cfg.Email.FromName,
+		TemplatesDir: cfg.Email.TemplatesDir,
+		WorkerCount:  cfg.WorkerCount,
+	})
 
 	// Initialize Auth Service & Middleware
 	authService := auth.NewAuthService(authRepo, userRepo, roleRepo, cfg.JWTSecret)
@@ -74,8 +92,10 @@ func main() {
 
 	// Initialize Handlers
 	userHandler := handlers.NewUserHandler(userRepo, authService, storageService, redisCache, logger)
-	authHandler := handlers.NewAuthHandler(authService, logger)
+	authHandler := handlers.NewAuthHandler(authRepo, verifyRepo, authService, emailService, logger)
 	roleHandler := handlers.NewRoleHandler(roleRepo, authService, logger)
+	emailHandler := handlers.NewEmailHandler(emailService, logger)
+	wsHandler := handlers.NewWebSocketHandler(wsService, logger)
 
 	// Initialize Echo Instance
 	e := echo.New()
@@ -84,7 +104,7 @@ func main() {
 	middleware.Init(e, logger)
 
 	// Setup Routes
-	routes.Setup(e, userHandler, authHandler, roleHandler, authMiddleware)
+	routes.Setup(e, userHandler, authHandler, roleHandler, emailHandler, wsHandler, authMiddleware)
 
 	// Start Server
 	logger.Info("Starting Server on Port %s", cfg.Port)

@@ -22,6 +22,16 @@ type StorageConfig struct {
 	PublicURL  string `yaml:"public_url"`
 }
 
+type EmailConfig struct {
+	SMTPHost     string `yaml:"smtp_host"`
+	SMTPPort     string `yaml:"smtp_port"`
+	SMTPUser     string `yaml:"smtp_user"`
+	SMTPPassword string `yaml:"smtp_password"`
+	FromEmail    string `yaml:"from_email"`
+	FromName     string `yaml:"from_name"`
+	TemplatesDir string `yaml:"templates_dir"`
+}
+
 type Config struct {
 	Port         string        `yaml:"port"`
 	MongoURL     string        `yaml:"mongo_url"`
@@ -30,6 +40,8 @@ type Config struct {
 	JWTSecret    string        `yaml:"jwt_secret"`
 	Redis        RedisConfig   `yaml:"redis"`
 	Storage      StorageConfig `yaml:"storage"`
+	Email        EmailConfig   `yaml:"email"`
+	WorkerCount  int           `yaml:"worker_count"`
 }
 
 func LoadConfig(filename string) (*Config, error) {

@@ -19,6 +19,8 @@ type AuthRepository interface {
 	GetByEmail(email string) (*models.UserAuth, error)
 	GetByUserID(userID primitive.ObjectID) (*models.UserAuth, error)
 	UpdatePassword(userID primitive.ObjectID, password string) error
+	UpdateRole(userID, roleID primitive.ObjectID) error
+	ActivateUser(userID primitive.ObjectID) error
 }
 
 type RoleRepository interface {
@@ -29,4 +31,11 @@ type RoleRepository interface {
 	Delete(id primitive.ObjectID) error
 	List() ([]*models.Role, error)
 	HasPermission(roleID primitive.ObjectID, resource, action string) (bool, error)
+}
+
+type VerificationRepository interface {
+	Create(verification *models.EmailVerification) error
+	GetByToken(token string) (*models.EmailVerification, error)
+	MarkAsUsed(id primitive.ObjectID) error
+	GetByUserID(userID primitive.ObjectID) (*models.EmailVerification, error)
 }

@@ -12,6 +12,8 @@ func Setup(
 	userHandler *handlers.UserHandler,
 	authHandler *handlers.AuthHandler,
 	roleHandler *handlers.RoleHandler,
+	emailHandler *handlers.EmailHandler,
+	wsHandler *handlers.WebSocketHandler,
 	authMiddleware *auth.Middleware,
 ) {
 	// Root Endpoint
@@ -26,6 +28,12 @@ func Setup(
 
 	// Auth Routes (No Authentication Required)
 	authHandler.RegisterRoutes(e)
+
+	// Email routes (no authentication required for stats)
+	emailHandler.RegisterRoutes(e, authMiddleware)
+
+	// WebSocket route
+	wsHandler.RegisterRoutes(e, authMiddleware)
 
 	// Protected Routes
 	protected := e.Group("")

@@ -10,6 +10,7 @@ redis:
   addr: "localhost:6379"
   password: ""
   db: 0
+worker_count: 3
 
 # S3 Storage Bucket (MinIO)
 storage:
@@ -20,3 +21,13 @@ storage:
   use_ssl: false
   region: "us-east-1"
   public_url: "http://localhost:9000"
+
+# Email Env
+email:
+  smtp_host: "smtp.gmail.com"
+  smtp_port: "587"
+  smtp_user: "your-email@gmail.com"
+  smtp_password: "your-app-password"
+  from_email: "noreply@yourapp.com"
+  from_name: "Your App"
+  templates_dir: "templates/email"
