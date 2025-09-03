@@ -14,6 +14,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 - (none)
 
+## [1.0.0] - 2025-09-03
+
+### New Features
+
+- Email verification after user registration
+- Asynchronous email sending using Redis
+- Upload profile picture functionality
+- Storage integration using MinIO
+- Caching with Redis
+- WebSocket feature for real-time communication
+
+### Changes
+
+- Added support for asynchronous operations and improved scalability
+
 ## [1.0.1-beta] - 2025-09-03
 
 ### New Features

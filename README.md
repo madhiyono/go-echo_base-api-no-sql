@@ -13,8 +13,13 @@ This project is a **Base API** server written in Go, using the [Echo](https://ec
 - Hot reload with [Air](https://github.com/air-verse/air)
 - Standardized API response template for all endpoints
 - Request validation for incoming data
-- Basic authentication using JWT
-- Authorization with user roles
+- Authentication using JWT
+- Authorization based on user roles
+- Role management stored in the database
+- Caching using Redis
+- File storage using MinIO
+- Asynchronous email sending (with templates)
+- WebSocket support
 
 ## Package Versions
 
@@ -36,29 +41,47 @@ cmd/
 config/
   config.go             # Configuration loader (reads config file and env)
   config.example.yaml   # Template configuration file (copy to config.yaml for setup)
+  config.yaml           # Main configuration file
 internal/
   auth/
     auth.go             # Authentication logic (login, token generation, password hashing)
     middleware.go       # Auth-related middleware (JWT validation, role checks)
+  cache/
+    redis.go            # Redis cache integration
+  email/
+    config.go           # Email configuration
+    service.go          # Asynchronous email sending logic
   handlers/
     handlers.go         # General handlers (base handler functions)
     user_handler.go     # User-related handlers (user endpoints: CRUD, profile)
     auth_handler.go     # Auth endpoints (login, register, refresh token)
     role_handler.go     # Role endpoints (role management)
+    email_handler.go    # Email-related endpoints
+    websocket_handler.go# WebSocket endpoints
   middleware/
     middleware.go       # Custom middleware (request logging, error handling, CORS, etc.)
   models/
     auth.go             # Auth-related data models (JWT claims, login/register structs)
     role.go             # Role data model (role struct, permissions)
     user.go             # User data model (user struct, validation)
+    email.go            # Email data model
+    verification.go     # Email verification model
+    websocket.go        # WebSocket data model
   repository/
     repository.go       # Repository interfaces (data access abstraction)
     mongo/
       auth_repo.go      # MongoDB auth repository implementation (login, register)
       role_repo.go      # MongoDB role repository implementation (role CRUD)
       user_repo.go      # MongoDB user repository implementation (user CRUD)
+      verification_repo.go # MongoDB email verification repository
   routes/
     routes.go           # Route definitions and registration (Echo router)
+  services/
+    websocket.go        # WebSocket service logic
+  storage/
+    config.go           # MinIO storage configuration
+    minio.go            # MinIO client setup
+    service.go          # File storage service logic
 pkg/
   logger/
     logger.go           # Logger utility (structured logging)
@@ -66,6 +89,10 @@ pkg/
     response.go         # Standardized API response template (success/error responses)
   validation/
     validation.go       # Request validation logic (struct validation, custom rules)
+templates/
+  email/
+    verification.html   # Email verification HTML template
+    verification.txt    # Email verification text template
 ```
 
 ## Getting Started
